@@ -1,2 +1,6 @@
 flask
 jinja2
+pandas
+requests
+requests-oauthlib
+cryptography
