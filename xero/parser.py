@@ -9,10 +9,6 @@ def convert_date(s):
     return datetime.fromtimestamp(ticks / 1000, timezone.utc)
 
 
-def get_cols(base):
-    return [val.name for _, val in base.__dict__.items() if type(val) is InstrumentedAttribute]
-
-
 class JournalsParser():
     cols_journal = set(
         [
