@@ -1,4 +1,6 @@
-create table xero.Organisations(
+create table 
+
+create table Organisations(
     TenantID text primary key,
     Name text,
     LegalName text,
@@ -30,7 +32,7 @@ create table xero.Organisations(
     LineOfBusiness text
 ) without rowid;
 
-create table xero.Accounts(
+create table Accounts(
     AccountID text primary key,
     Code text,
     Name text,
@@ -52,7 +54,7 @@ create table xero.Accounts(
     AddToWatchlist boolean
 ) without rowid;
 
-create table xero.Journals(
+create table Journals(
     JournalNumber integer primary key,
     JournalID text not null,
     JournalDate date not null,
@@ -62,7 +64,7 @@ create table xero.Journals(
     SourceType text
 ) without rowid;
 
-create table xero.JournalLines(
+create table JournalLines(
     JournalLineID text primary key,
     JournalNumber integer foreign key references Journals(JournalNumber),
     AccountID text not null,

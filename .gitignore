@@ -1,4 +1,6 @@
 .venv/
 venv/
+sql/tenants/
+sql/users.db
 
 __pycache__/
