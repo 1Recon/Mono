@@ -1,4 +1,18 @@
-create table 
+create table recon_settings(
+    AccountID text primary key,
+    ReconType text not null,
+    LastJournalNumber int,
+    TemplateJSON text,
+    JournalStart int,
+    OpeningBalance decimal(22,4) default 0
+) without rowid;
+
+create table recon_mappings(
+    AccountID text not null,
+    Mapping text not null,
+    JSON text,
+    primary key(AccountID, Mapping)
+) without rowid;
 
 create table Organisations(
     TenantID text primary key,
@@ -65,8 +79,10 @@ create table Journals(
 ) without rowid;
 
 create table JournalLines(
-    JournalLineID text primary key,
-    JournalNumber integer foreign key references Journals(JournalNumber),
+    JournalNumber integer foreign key
+        references Journals(JournalNumber)
+        on delete cascade,
+    JournalLineID text not null,
     AccountID text not null,
     AccountCode text,
     AccountType text,
@@ -77,5 +93,6 @@ create table JournalLines(
     TaxType text,
     TaxName text,
     Description text,
-    TrackingCategories text
+    TrackingCategories text,
+    primary key(JournalNumber, JournalLineID)
 ) without rowid;

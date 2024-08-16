@@ -1,20 +1,80 @@
 from requests_oauthlib import OAuth2Session
 from requests.auth import HTTPBasicAuth
 from cryptography.fernet import Fernet
-from sql import get_user_db, get_tenant_db
+from sql import get_user_db, get_xero_tokens_db
+from utils.redis import redis_con_bytes
+from config import fernet_key, client_id, client_secret, sso_id, sso_secret
+from time import time
 import jwt
 import json
 
-scope = ("offline_access openid profile email accounting.transactions.read "
+refresh_url = 'https://identity.xero.com/connect/token'
+scope = (
+    "offline_access openid profile email accounting.transactions.read "
     "accounting.reports.read accounting.journals.read accounting.settings.read "
-    "accounting.contacts.read accounting.attachments.read accounting.budgets.read")
+    "accounting.contacts.read accounting.attachments.read accounting.budgets.read"
+)
 
+def encrypt_token(token: dict) -> bytes:
+    text = json.dumps(token)
+    f = Fernet(fernet_key)
+    return f.encrypt(text.encode('utf-8'))
 
-def set_tenant_user(tenant_id: str, tenant_name: str, user: str):
-    con = get_tenant_db(tenant_id)
+def decrypt_token(encypted_token: bytes) -> dict:
+    f = Fernet(fernet_key)
+    return json.loads(f.decrypt(encypted_token).decode())
+
+def set_tenant_user(tenant_id: str, user_email: str):
+    con = get_user_db()
     with con:
-        con.execute(f"")
-    pass
+        con.execute(
+            "insert into token_users(email, tenant_id) values (?, ?)",
+            (user_email, tenant_id),
+        )
+
+def store_xero_oauth2_token(token: dict, user: str):
+    con = get_xero_tokens_db()
+    with con:
+        con.execute(
+            "delete from tokens where user = ?;",
+            (user,),
+        )
+        con.execute(
+            "insert into tokens(email, token) values (?, ?)",
+            (user, encrypt_token(token)),
+        )
+
+def get_refreshed_token(user: str) -> dict:
+    if redis_con_bytes:
+        resp: bytes|None = redis_con_bytes.get(f'xero-token:{user}') # type: ignore
+        if resp:
+            return decrypt_token(resp)
+    con = get_xero_tokens_db()
+    with con:
+        cur = con.execute(
+            "select token from tokens where email = ?",
+            (user,),
+        )
+        token = decrypt_token(cur.fetchone()[0])
+        if token['expires_at'] - time() < 60:
+            token = refresh_token(token)
+            et = encrypt_token(token)
+            con.execute(
+                "update tokens set token = ? where email = ?",
+                (et, user),
+            )
+            if redis_con_bytes:
+                redis_con_bytes.set(f'xero-token:{user}', et, ex=(token['expires_in']-60))
+    return token
+
+def refresh_token(token: dict):
+        auth = HTTPBasicAuth(client_id, client_secret)
+        session = OAuth2Session(client_id, token=token)
+        return session.refresh_token(
+            refresh_url,
+            refresh_token=token['refresh_token'],
+            auth=auth
+        )
 
 class XeroTokenManager():
 
@@ -35,8 +95,8 @@ class XeroTokenManager():
     def set_tenants_client(self):
         resp = self.oauth.get("https://api.xero.com/connections")
         tenant_ids = {ten['tenantId']: ten['tenantName'] for ten in resp.json()}
-        for tenant_id, tenant_name in tenant_ids.items():
-            set_tenant_user(tenant_id, tenant_name, self.user)
+        for tenant_id in tenant_ids:
+            set_tenant_user(tenant_id, self.user)
 
     @property
     def oauth(self):
@@ -78,7 +138,7 @@ class XeroTokenManager():
 
     def get_xero_token(self, auth_resp: str):
         if self.client_secret is None:
-            self.client_secret = xero_client_info[str(self.oauth.client_id)]
+            self.client_secret = client_secret
         access_token_url = "https://identity.xero.com/connect/token"
         self._token = self.oauth.fetch_token(
             access_token_url,
@@ -96,6 +156,4 @@ class XeroTokenManager():
 
     def store_token_sql(self):
         if self.token and self.user:
-            store_xero_oauth2_token(self.token, self.client_id, self.user)
-
-
+            store_xero_oauth2_token(self.token, self.user)

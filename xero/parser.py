@@ -39,7 +39,7 @@ class JournalsParser():
         ]
     )
 
-    def __init__(self, journals, offset=0):
+    def __init__(self, journals: list[dict], offset=0):
         journal_entries = []
         self.journal_lines = []
         self.journal_lines_tracking = []
@@ -101,7 +101,7 @@ class AccountsParser():
         ]
     )
 
-    def __init__(self, accounts) -> None:
+    def __init__(self, accounts: list[dict]) -> None:
         account_entries = []
         for account in accounts:
             account_entry = {}
@@ -150,7 +150,7 @@ class OrganisationParser():
         ]
     )
 
-    def __init__(self, organisations, tenant_id) -> None:
+    def __init__(self, organisations: list[dict], tenant_id) -> None:
         organisation_entry = {}
         for key, val in organisations[0].items():
             if key in self.cols_organisation:
@@ -160,3 +160,24 @@ class OrganisationParser():
                     organisation_entry[key] = val
         organisation_entry['TenantID'] = tenant_id
         self.df_organisations = pd.DataFrame.from_dict([organisation_entry]) #type: ignore
+
+
+class UsersParser():
+    cols_users = set(
+        [
+            "UserID",
+            "EmailAddress",
+            "FirstName",
+            "LastName",
+            "UpdatedDateUTC",
+            "IsSubscriber",
+            "OrganisationRole",
+        ]
+    )
+
+    def __init__(self, users: list[dict]) -> None:
+        user_entries = []
+        for user in users:
+            user_entry = {c: user.get(c) for c in self.cols_users}
+            user_entries.append(user_entry)
+        self.df_users = pd.DataFrame.from_dict(user_entries)

@@ -4,3 +4,5 @@ pandas
 requests
 requests-oauthlib
 cryptography
+pyjwt
+redis

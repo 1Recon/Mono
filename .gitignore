@@ -2,5 +2,6 @@
 venv/
 sql/tenants/
 sql/users.db
+config.py
 
 __pycache__/
